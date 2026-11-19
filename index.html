@@ -1,0 +1,847 @@
+<!doctype html>
+<html lang="id">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Tes Pauli - Perkalian</title>
+		<script src="https://cdn.tailwindcss.com"></script>
+		<!-- Library untuk PDF -->
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+		<!-- Library untuk Grafik (Chart.js) -->
+		<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+		<style>
+			input[type="number"]::-webkit-inner-spin-button,
+			input[type="number"]::-webkit-outer-spin-button {
+				-webkit-appearance: none;
+				margin: 0;
+			}
+			.fade-in {
+				animation: fadeIn 0.4s ease-in-out;
+			}
+			@keyframes fadeIn {
+				from {
+					opacity: 0;
+					transform: translateY(10px);
+				}
+				to {
+					opacity: 1;
+					transform: translateY(0);
+				}
+			}
+			input:focus {
+				outline: none;
+				box-shadow: 0 0 0 2px #3b82f6;
+				border-color: transparent;
+			}
+			.pauli-scroll::-webkit-scrollbar {
+				width: 8px;
+				height: 8px;
+			}
+			.pauli-scroll::-webkit-scrollbar-thumb {
+				background-color: #cbd5e1;
+				border-radius: 4px;
+			}
+		</style>
+	</head>
+	<body
+		class="bg-slate-100 text-slate-800 font-sans min-h-screen flex flex-col h-screen overflow-hidden"
+	>
+		<audio id="countdown-sound" src="countdown.mp3" preload="auto"></audio>
+
+		<!-- LAYAR AWAL & INPUT NAMA -->
+		<div
+			id="start-screen"
+			class="flex-grow flex items-center justify-center p-4 overflow-y-auto"
+		>
+			<div
+				class="bg-white rounded-2xl shadow-lg p-8 max-w-lg w-full text-center fade-in"
+			>
+				<h1 class="text-3xl font-bold text-blue-700 mb-2">
+					Tes Pauli (Perkalian)
+				</h1>
+				<p class="text-slate-600 mb-6 text-sm">
+					Masukkan nama Anda untuk memulai tes.
+				</p>
+
+				<div class="mb-6 text-left">
+					<label class="block text-slate-700 font-semibold mb-2 text-sm"
+						>Nama Lengkap:</label
+					>
+					<input
+						type="text"
+						id="participant-name"
+						placeholder="Contoh: Budi Santoso"
+						class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 font-medium"
+					/>
+					<p id="name-error" class="text-red-500 text-xs mt-1 hidden">
+						Nama wajib diisi sebelum mulai!
+					</p>
+				</div>
+
+				<div
+					class="bg-slate-50 rounded-xl p-4 text-slate-600 text-xs mb-6 text-left leading-relaxed border border-slate-200"
+				>
+					<strong>Ketentuan Tes:</strong><br />
+					• 20 Kolom 100 baris isian <strong>perkalian</strong> (ambil angka
+					terakhir dari hasil kali).<br />
+					• Waktu pengerjaan: <strong>1 menit (60 detik)</strong> per kolom.<br />
+					• Silahkan mengunduh hasil pengerjaan di akhir tes.
+				</div>
+
+				<button
+					onclick="startTest()"
+					class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-xl shadow-md transition-all"
+				>
+					Mulai Tes Sekarang
+				</button>
+			</div>
+		</div>
+
+		<!-- LAYAR TES -->
+		<div id="test-screen" class="hidden flex-col h-full w-full">
+			<div
+				class="bg-white shadow-sm shrink-0 px-4 py-3 flex justify-between items-center z-20 border-b"
+			>
+				<div>
+					<h2
+						id="participant-display"
+						class="text-base md:text-lg font-bold text-slate-800"
+					>
+						Peserta: -
+					</h2>
+					<p
+						id="col-indicator"
+						class="text-xs md:text-sm font-semibold text-blue-600"
+					>
+						Kolom 1 / 20
+					</p>
+				</div>
+				<div class="text-right flex items-center gap-3">
+					<p
+						class="text-xs text-slate-500 uppercase tracking-wide font-bold hidden md:block"
+					>
+						Sisa Waktu
+					</p>
+					<div
+						id="timer-display"
+						class="text-2xl md:text-3xl font-mono font-bold text-slate-800 tabular-nums"
+					>
+						01:00
+					</div>
+				</div>
+			</div>
+
+			<!-- Board Area -->
+			<div
+				id="pauli-board"
+				class="flex-grow pauli-scroll p-6 overflow-auto bg-slate-50 flex gap-6 select-none items-start"
+			>
+				<!-- Kolom Angka -->
+			</div>
+		</div>
+
+		<!-- LAYAR SELESAI -->
+		<div
+			id="end-screen"
+			class="hidden flex-grow items-center justify-center p-4 overflow-y-auto"
+		>
+			<div
+				class="bg-white rounded-2xl shadow-lg p-6 md:p-8 max-w-6xl w-full text-center fade-in flex flex-col max-h-[92vh] my-auto"
+			>
+				<h1 class="text-3xl font-bold text-slate-800 mb-1">Tes Selesai!</h1>
+				<p id="completion-subtitle" class="text-slate-600 mb-4 text-sm">
+					Terima kasih telah menyelesaikan Tes Pauli Perkalian. Berikut rincian
+					grafik performa dan tabel jawaban:
+				</p>
+
+				<!-- Container 3 Grafik Per Kolom dengan Informasi Detail -->
+				<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 shrink-0">
+					<div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+						<h3 class="text-xs font-bold text-slate-700">Soal Dikerjakan</h3>
+						<p id="stat-label-filled" class="text-xs text-slate-500 mb-2">
+							Total: 0 / 2000
+						</p>
+						<div class="relative h-36">
+							<canvas id="chartFilled"></canvas>
+						</div>
+					</div>
+					<div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+						<h3 class="text-xs font-bold text-green-700">Jawaban Benar</h3>
+						<p id="stat-label-correct" class="text-xs text-slate-500 mb-2">
+							Total Benar: 0
+						</p>
+						<div class="relative h-36">
+							<canvas id="chartCorrect"></canvas>
+						</div>
+					</div>
+					<div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+						<h3 class="text-xs font-bold text-red-700">Jawaban Salah</h3>
+						<p id="stat-label-wrong" class="text-xs text-slate-500 mb-2">
+							Total Salah: 0
+						</p>
+						<div class="relative h-36">
+							<canvas id="chartWrong"></canvas>
+						</div>
+					</div>
+				</div>
+
+				<!-- Visualisasi Hasil ala PDF -->
+				<div
+					class="overflow-y-auto overflow-x-auto bg-slate-50 rounded-xl border border-slate-200 mb-6 flex-grow pauli-scroll max-h-56"
+				>
+					<table
+						class="w-full text-left text-xs border-collapse"
+						id="result-visual-table"
+					>
+						<thead
+							class="bg-slate-200 text-slate-700 uppercase sticky top-0 z-10"
+							id="result-table-head"
+						></thead>
+						<tbody
+							class="divide-y divide-slate-200"
+							id="result-table-body"
+						></tbody>
+					</table>
+				</div>
+
+				<div class="flex flex-col md:flex-row gap-3 justify-center shrink-0">
+					<button
+						onclick="downloadPDF()"
+						class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2"
+					>
+						Unduh Laporan PDF (Termasuk Grafik)
+					</button>
+					<button
+						onclick="location.reload()"
+						class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-3 px-6 rounded-lg transition-colors"
+					>
+						Mulai Tes Baru
+					</button>
+				</div>
+			</div>
+		</div>
+
+		<script>
+			const TOTAL_COLS = 20;
+			const INPUTS_PER_COL = 100;
+			const NUMBERS_PER_COL = INPUTS_PER_COL + 1; // 101 Angka
+			const TIME_PER_COL = 60;
+
+			let participantName = "";
+			let currentColIndex = 0;
+			let timeLeft = TIME_PER_COL;
+			let timerInterval = null;
+			let testRawData = [];
+			let summaryStats = { filled: 0, correct: 0, wrong: 0 };
+			let chartInstances = [];
+
+			const startScreen = document.getElementById("start-screen");
+			const testScreen = document.getElementById("test-screen");
+			const endScreen = document.getElementById("end-screen");
+			const pauliBoard = document.getElementById("pauli-board");
+			const timerDisplay = document.getElementById("timer-display");
+			const colIndicator = document.getElementById("col-indicator");
+			const participantDisplay = document.getElementById("participant-display");
+			const nameInput = document.getElementById("participant-name");
+			const nameError = document.getElementById("name-error");
+			const countdownSound = document.getElementById("countdown-sound");
+
+			function startTest() {
+				const nameVal = nameInput.value.trim();
+				if (!nameVal) {
+					nameError.classList.remove("hidden");
+					nameInput.focus();
+					return;
+				}
+				nameError.classList.add("hidden");
+				participantName = nameVal;
+				participantDisplay.innerText = `Peserta: ${participantName}`;
+
+				startScreen.classList.add("hidden");
+				testScreen.classList.remove("hidden");
+				testScreen.classList.add("flex");
+
+				generateAllColumns();
+				currentColIndex = 0;
+				activateColumn(currentColIndex);
+				startTimer();
+			}
+
+			function generateAllColumns() {
+				pauliBoard.innerHTML = "";
+				testRawData = [];
+
+				for (let c = 0; c < TOTAL_COLS; c++) {
+					const colWrapper = document.createElement("div");
+					colWrapper.className =
+						"flex flex-col pauli-column opacity-40 pointer-events-none transition-opacity duration-300 w-28 md:w-32 shrink-0 border border-transparent bg-white rounded-lg shadow-sm p-3";
+					colWrapper.dataset.col = c;
+
+					const header = document.createElement("div");
+					header.className =
+						"text-center font-bold text-slate-700 bg-slate-200 py-1.5 mb-3 rounded text-xs relative z-10";
+					header.innerText = `KOLOM ${(c + 1).toString().padStart(2, "0")}`;
+					colWrapper.appendChild(header);
+
+					const numbers = Array.from({ length: NUMBERS_PER_COL }, () =>
+						Math.floor(Math.random() * 10),
+					);
+					let colRowsData = { numbers: numbers, inputs: [] };
+
+					for (let i = 0; i < numbers.length; i++) {
+						const rowContainer = document.createElement("div");
+						rowContainer.className =
+							"flex items-center justify-between w-full h-5 my-0.5";
+
+						const numDiv = document.createElement("div");
+						numDiv.className =
+							"text-base md:text-lg font-bold text-slate-800 w-1/2 text-center";
+						numDiv.innerText = numbers[i];
+						rowContainer.appendChild(numDiv);
+
+						const rightPlaceholder = document.createElement("div");
+						rightPlaceholder.className = "w-1/2 flex justify-center";
+						rowContainer.appendChild(rightPlaceholder);
+
+						colWrapper.appendChild(rowContainer);
+
+						if (i < numbers.length - 1) {
+							// Diubah dari penjumlahan (+) menjadi perkalian (*)
+							const product = numbers[i] * numbers[i + 1];
+							const correctDigit = product % 10; // Mengambil digit satuan dari hasil perkalian
+
+							colRowsData.inputs.push({
+								row: i,
+								correct: correctDigit,
+								userAnswer: "",
+								status: "kosong",
+							});
+
+							const inputRowContainer = document.createElement("div");
+							inputRowContainer.className =
+								"flex items-center justify-between w-full h-5 my-0.5 relative z-10";
+
+							const leftEmpty = document.createElement("div");
+							leftEmpty.className = "w-1/2";
+							inputRowContainer.appendChild(leftEmpty);
+
+							const inputWrapper = document.createElement("div");
+							inputWrapper.className = "w-1/2 flex justify-center items-center";
+
+							const input = document.createElement("input");
+							input.type = "text";
+							input.inputMode = "numeric";
+							input.maxLength = 1;
+							input.className =
+								"pauli-input w-6 h-6 md:w-7 md:h-7 text-center border border-slate-300 bg-white text-slate-700 text-xs md:text-sm font-bold transition-all shadow-sm rounded-sm";
+							input.dataset.col = c;
+							input.dataset.row = i;
+
+							input.addEventListener("input", handleInput);
+
+							inputWrapper.appendChild(input);
+							inputRowContainer.appendChild(inputWrapper);
+
+							colWrapper.appendChild(inputRowContainer);
+						}
+					}
+
+					testRawData.push(colRowsData);
+					pauliBoard.appendChild(colWrapper);
+				}
+			}
+
+			function activateColumn(colIndex) {
+				const cols = document.querySelectorAll(".pauli-column");
+				cols.forEach((col, idx) => {
+					if (idx === colIndex) {
+						col.classList.remove(
+							"opacity-40",
+							"pointer-events-none",
+							"border-transparent",
+						);
+						col.classList.add(
+							"opacity-100",
+							"bg-white",
+							"rounded-lg",
+							"shadow-md",
+							"border-blue-300",
+						);
+					} else {
+						col.classList.add(
+							"opacity-40",
+							"pointer-events-none",
+							"border-transparent",
+						);
+						col.classList.remove(
+							"opacity-100",
+							"bg-white",
+							"rounded-lg",
+							"shadow-md",
+							"border-blue-300",
+						);
+					}
+				});
+
+				const activeCol = cols[colIndex];
+				if (activeCol) {
+					activeCol.scrollIntoView({
+						behavior: "smooth",
+						block: "nearest",
+						inline: "center",
+					});
+					setTimeout(() => {
+						const firstInput = activeCol.querySelector(
+							".pauli-input:not([readonly])",
+						);
+						if (firstInput) {
+							firstInput.focus();
+							firstInput.scrollIntoView({
+								behavior: "smooth",
+								block: "center",
+								inline: "nearest",
+							});
+						}
+					}, 250);
+				}
+			}
+
+			function handleInput(e) {
+				const input = e.target;
+				const val = input.value;
+
+				if (!/^\d$/.test(val)) {
+					input.value = "";
+					return;
+				}
+
+				const c = parseInt(input.dataset.col);
+				const r = parseInt(input.dataset.row);
+
+				const targetInputData = testRawData[c].inputs[r];
+				const isCorrect = parseInt(val) === targetInputData.correct;
+
+				targetInputData.userAnswer = val;
+				targetInputData.status = isCorrect ? "benar" : "salah";
+
+				input.readOnly = true;
+				input.classList.add(
+					"bg-slate-100",
+					"text-slate-800",
+					"border-slate-400",
+					"cursor-not-allowed",
+				);
+
+				if (r === INPUTS_PER_COL - 1) {
+					setTimeout(() => {
+						nextColumn();
+					}, 300);
+				} else {
+					const nextInput = document.querySelector(
+						`.pauli-input[data-col="${c}"][data-row="${r + 1}"]`,
+					);
+					if (nextInput) {
+						nextInput.focus();
+						nextInput.scrollIntoView({
+							behavior: "smooth",
+							block: "center",
+							inline: "nearest",
+						});
+					}
+				}
+			}
+
+			function startTimer() {
+				clearInterval(timerInterval);
+				timeLeft = TIME_PER_COL;
+				updateTimerDisplay();
+
+				timerInterval = setInterval(() => {
+					timeLeft--;
+					updateTimerDisplay();
+
+					if (timeLeft === 8) {
+						playCountdownSound();
+					}
+
+					if (timeLeft <= 0) {
+						clearInterval(timerInterval);
+						nextColumn();
+					}
+				}, 1000);
+			}
+
+			function playCountdownSound() {
+				if (countdownSound) {
+					countdownSound.currentTime = 0;
+					countdownSound.play().catch((error) => {
+						console.log("Gagal memutar audio countdown:", error);
+					});
+				}
+			}
+
+			function updateTimerDisplay() {
+				const minutes = Math.floor(timeLeft / 60)
+					.toString()
+					.padStart(2, "0");
+				const seconds = (timeLeft % 60).toString().padStart(2, "0");
+				timerDisplay.innerText = `${minutes}:${seconds}`;
+
+				if (timeLeft <= 10) {
+					timerDisplay.classList.add("text-red-600");
+					timerDisplay.classList.remove("text-slate-800");
+				} else {
+					timerDisplay.classList.remove("text-red-600");
+					timerDisplay.classList.add("text-slate-800");
+				}
+			}
+
+			function nextColumn() {
+				currentColIndex++;
+				if (currentColIndex >= TOTAL_COLS) {
+					finishTest();
+				} else {
+					colIndicator.innerText = `Kolom ${currentColIndex + 1} / ${TOTAL_COLS}`;
+					activateColumn(currentColIndex);
+					startTimer();
+				}
+			}
+
+			function finishTest() {
+				clearInterval(timerInterval);
+				testScreen.classList.add("hidden");
+				endScreen.classList.remove("hidden");
+				endScreen.classList.add("flex");
+				calculateSummary();
+				renderCharts();
+				renderVisualResultTable();
+			}
+
+			function calculateSummary() {
+				let grandFilled = 0;
+				let grandCorrect = 0;
+				let grandWrong = 0;
+
+				testRawData.forEach((col) => {
+					let filled = col.inputs.filter((i) => i.userAnswer !== "").length;
+					let correct = col.inputs.filter((i) => i.status === "benar").length;
+					let wrong = col.inputs.filter((i) => i.status === "salah").length;
+
+					grandFilled += filled;
+					grandCorrect += correct;
+					grandWrong += wrong;
+				});
+
+				summaryStats = {
+					filled: grandFilled,
+					correct: grandCorrect,
+					wrong: grandWrong,
+				};
+
+				document.getElementById("stat-label-filled").innerText =
+					`Total Dikerjakan: ${grandFilled} dari 2000 soal`;
+				document.getElementById("stat-label-correct").innerText =
+					`Total Jawaban Benar: ${grandCorrect} (${
+						grandFilled > 0
+							? ((grandCorrect / grandFilled) * 100).toFixed(1)
+							: 0
+					}%)`;
+				document.getElementById("stat-label-wrong").innerText =
+					`Total Jawaban Salah: ${grandWrong} (${
+						grandFilled > 0 ? ((grandWrong / grandFilled) * 100).toFixed(1) : 0
+					}%)`;
+			}
+
+			function renderCharts() {
+				chartInstances.forEach((chart) => chart.destroy());
+				chartInstances = [];
+
+				let colLabels = Array.from(
+					{ length: TOTAL_COLS },
+					(_, i) => `K${i + 1}`,
+				);
+				let filledData = testRawData.map(
+					(col) => col.inputs.filter((i) => i.userAnswer !== "").length,
+				);
+				let correctData = testRawData.map(
+					(col) => col.inputs.filter((i) => i.status === "benar").length,
+				);
+				let wrongData = testRawData.map(
+					(col) => col.inputs.filter((i) => i.status === "salah").length,
+				);
+
+				const commonOptions = {
+					responsive: true,
+					maintainAspectRatio: false,
+					plugins: { legend: { display: false } },
+					scales: {
+						y: {
+							beginAtZero: true,
+							max: 100,
+							ticks: { font: { size: 10 } },
+						},
+						x: { ticks: { font: { size: 9 } } },
+					},
+				};
+
+				let ctxFilled = document.getElementById("chartFilled").getContext("2d");
+				chartInstances.push(
+					new Chart(ctxFilled, {
+						type: "bar",
+						data: {
+							labels: colLabels,
+							datasets: [
+								{
+									data: filledData,
+									backgroundColor: "#3b82f6",
+									borderRadius: 3,
+								},
+							],
+						},
+						options: commonOptions,
+					}),
+				);
+
+				let ctxCorrect = document
+					.getElementById("chartCorrect")
+					.getContext("2d");
+				chartInstances.push(
+					new Chart(ctxCorrect, {
+						type: "bar",
+						data: {
+							labels: colLabels,
+							datasets: [
+								{
+									data: correctData,
+									backgroundColor: "#22c55e",
+									borderRadius: 3,
+								},
+							],
+						},
+						options: commonOptions,
+					}),
+				);
+
+				let ctxWrong = document.getElementById("chartWrong").getContext("2d");
+				chartInstances.push(
+					new Chart(ctxWrong, {
+						type: "bar",
+						data: {
+							labels: colLabels,
+							datasets: [
+								{
+									data: wrongData,
+									backgroundColor: "#ef4444",
+									borderRadius: 3,
+								},
+							],
+						},
+						options: commonOptions,
+					}),
+				);
+			}
+
+			function renderVisualResultTable() {
+				const thead = document.getElementById("result-table-head");
+				const tbody = document.getElementById("result-table-body");
+				thead.innerHTML = "";
+				tbody.innerHTML = "";
+
+				let headTr = document.createElement("tr");
+				let thNo = document.createElement("th");
+				thNo.className = "px-3 py-2 text-center border bg-slate-300 font-bold";
+				thNo.innerText = "Baris";
+				headTr.appendChild(thNo);
+
+				for (let c = 1; c <= TOTAL_COLS; c++) {
+					let th = document.createElement("th");
+					th.className = "px-2 py-2 text-center border bg-slate-300 font-bold";
+					th.innerText = `K${c < 10 ? "0" + c : c}`;
+					headTr.appendChild(th);
+				}
+				thead.appendChild(headTr);
+
+				let maxVisualRows = NUMBERS_PER_COL + INPUTS_PER_COL;
+				for (let vRow = 0; vRow < maxVisualRows; vRow++) {
+					let tr = document.createElement("tr");
+					let tdLabel = document.createElement("td");
+					tdLabel.className =
+						"px-2 py-1 text-center border font-bold bg-slate-100 text-slate-500";
+
+					let isNumberRow = vRow % 2 === 0;
+					if (isNumberRow) {
+						let numIndex = vRow / 2;
+						tdLabel.innerText = `A${numIndex + 1}`;
+					} else {
+						let inputIndex = (vRow - 1) / 2;
+						tdLabel.innerText = `J${inputIndex + 1}`;
+					}
+					tr.appendChild(tdLabel);
+
+					for (let c = 0; c < TOTAL_COLS; c++) {
+						let td = document.createElement("td");
+						td.className = "px-2 py-1 text-center border font-semibold";
+						let colData = testRawData[c];
+
+						if (isNumberRow) {
+							let numIndex = vRow / 2;
+							td.innerText = colData.numbers[numIndex];
+							td.classList.add("bg-slate-50", "text-slate-800");
+						} else {
+							let inputIndex = (vRow - 1) / 2;
+							let inp = colData.inputs[inputIndex];
+							td.innerText = inp
+								? inp.userAnswer !== ""
+									? inp.userAnswer
+									: "-"
+								: "";
+
+							if (inp && inp.status === "benar") {
+								td.classList.add("bg-green-100", "text-green-800");
+							} else if (inp && inp.status === "salah") {
+								td.classList.add("bg-red-100", "text-red-800");
+							} else {
+								td.classList.add("bg-white", "text-slate-300");
+							}
+						}
+						tr.appendChild(td);
+					}
+					tbody.appendChild(tr);
+				}
+			}
+
+			function generatePDFDocument() {
+				const { jsPDF } = window.jspdf;
+				const doc = new jsPDF("landscape", "mm", "a3");
+
+				doc.setFont("helvetica", "bold");
+				doc.setFontSize(14);
+				doc.text(
+					`LAPORAN HASIL TES PAULI (PERKALIAN) - PESERTA: ${participantName.toUpperCase()}`,
+					14,
+					12,
+				);
+
+				doc.setFont("helvetica", "normal");
+				doc.setFontSize(8);
+				doc.text(
+					`Tanggal: ${new Date().toLocaleString("id-ID")} | Total Dikerjakan: ${summaryStats.filled}/2000 | Benar: ${summaryStats.correct} | Salah: ${summaryStats.wrong}`,
+					14,
+					17,
+				);
+
+				if (chartInstances.length === 3) {
+					const imgFilled = chartInstances[0].toBase64Image();
+					const imgCorrect = chartInstances[1].toBase64Image();
+					const imgWrong = chartInstances[2].toBase64Image();
+
+					doc.setFont("helvetica", "bold");
+					doc.setFontSize(10);
+					doc.text(
+						"Grafik Performa Per Kolom (Perkalian 101 Angka / 100 Isian per Kolom):",
+						14,
+						23,
+					);
+
+					doc.addImage(imgFilled, "PNG", 14, 26, 85, 38);
+					doc.addImage(imgCorrect, "PNG", 103, 26, 85, 38);
+					doc.addImage(imgWrong, "PNG", 192, 26, 85, 38);
+				}
+
+				let pdfHeaders = ["Baris"];
+				for (let c = 1; c <= TOTAL_COLS; c++) {
+					pdfHeaders.push(`K${c < 10 ? "0" + c : c}`);
+				}
+
+				let pdfBody = [];
+				let maxVisualRows = NUMBERS_PER_COL + INPUTS_PER_COL;
+
+				for (let vRow = 0; vRow < maxVisualRows; vRow++) {
+					let rowCells = [];
+					let isNumberRow = vRow % 2 === 0;
+
+					if (isNumberRow) {
+						rowCells.push(`A${vRow / 2 + 1}`);
+					} else {
+						rowCells.push(`J${(vRow - 1) / 2 + 1}`);
+					}
+
+					for (let c = 0; c < TOTAL_COLS; c++) {
+						let colData = testRawData[c];
+						if (isNumberRow) {
+							let numIndex = vRow / 2;
+							rowCells.push(colData.numbers[numIndex].toString());
+						} else {
+							let inputIndex = (vRow - 1) / 2;
+							let inp = colData.inputs[inputIndex];
+							rowCells.push(
+								inp && inp.userAnswer !== "" ? `${inp.userAnswer}` : "",
+							);
+						}
+					}
+					pdfBody.push(rowCells);
+				}
+
+				doc.autoTable({
+					startY: 68,
+					head: [pdfHeaders],
+					body: pdfBody,
+					theme: "grid",
+					headStyles: {
+						fillColor: [100, 116, 139],
+						halign: "center",
+						fontSize: 7,
+						cellPadding: 1,
+					},
+					styles: {
+						fontSize: 6,
+						cellPadding: 0.8,
+						halign: "center",
+						fontStyle: "bold",
+					},
+					didParseCell: function (data) {
+						if (data.section === "body") {
+							let vRow = data.row.index;
+							let cIdx = data.column.index - 1;
+
+							if (data.column.index === 0) {
+								data.cell.styles.fillColor = [241, 245, 249];
+								data.cell.styles.textColor = [100, 116, 139];
+								return;
+							}
+
+							let isNumberRow = vRow % 2 === 0;
+							if (!isNumberRow) {
+								let inputIndex = (vRow - 1) / 2;
+								let inp = testRawData[cIdx].inputs[inputIndex];
+
+								if (inp && inp.status === "benar") {
+									data.cell.styles.fillColor = [187, 247, 208];
+									data.cell.styles.textColor = [22, 101, 52];
+								} else if (inp && inp.status === "salah") {
+									data.cell.styles.fillColor = [254, 202, 202];
+									data.cell.styles.textColor = [153, 27, 27];
+								} else {
+									data.cell.styles.fillColor = [255, 255, 255];
+									data.cell.styles.textColor = [200, 200, 200];
+								}
+							} else {
+								data.cell.styles.fillColor = [248, 250, 252];
+								data.cell.styles.textColor = [30, 41, 59];
+							}
+						}
+					},
+				});
+				return doc;
+			}
+
+			function downloadPDF() {
+				const doc = generatePDFDocument();
+				doc.save(
+					`Tes-Pauli-Perkalian-${participantName.replace(/\s+/g, "-")}.pdf`,
+				);
+			}
+		</script>
+	</body>
+</html>
